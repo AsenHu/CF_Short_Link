@@ -33,11 +33,25 @@ const onRequestGet = async (context: { request: Request, env: Env }) => {
 
     // 从 URL 中获取查询参数的值
     const query = new URL(context.request.url).searchParams.get('q') || '';
-    const cursor = new URL(context.request.url).searchParams.get('c') || '';
+    let cursor = new URL(context.request.url).searchParams.get('c') || '';
     console.log('Query:', query, 'Cursor:', cursor);
 
     // 获取数据
-    const result = await context.env.kv.list({ cursor: cursor || undefined });
+    let allKeys = []
+    let entries;
+    do {
+        entries = await context.env.kv.list({ limit: 2, cursor: cursor || undefined });
+        entries.list_complete = entries.list_complete
+        if ('cursor' in entries) {
+            cursor = entries.cursor
+        }
+        allKeys.push(...entries.keys)
+    } while (!entries.list_complete)
+    const result = {
+        keys: allKeys,
+        list_complete: entries.list_complete,
+        cursor: undefined,
+    }
 
     // 筛选 keys
     let keys = result.keys;
